@@ -32,5 +32,9 @@
 *.app
 
 
- .vscode
- build
+.vscode
+build
+
+go_upstairs.ll
+
+c
