@@ -510,20 +510,59 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
     if (node.array_index.empty())
     //非数组
     {
-        auto val_const = dynamic_cast<ConstantInt *>(var);
-        if (val_const != nullptr)
-        {
-            tmp_val = val_const;
+        if (var->get_type()->is_integer_type()) {
+            auto val_const = dynamic_cast<ConstantInt *>(var);
+            if (val_const != nullptr)
+            {
+                tmp_val = val_const;
+            }
+            else
+            {
+                tmp_val = builder->create_load(var);
+            }
         }
-        else
-        {
-            tmp_val = builder->create_load(var);
+        else if (var->get_type()->is_float_type()) {
+            auto val_const = dynamic_cast<ConstantFloat *>(var);
+            if (val_const != nullptr)
+            {
+                tmp_val = val_const;
+            }
+            else
+            {
+                tmp_val = builder->create_load(var);
+            }
         }
     }
     else
     //数组
     {
-
+        for (auto index : node.array_index) {
+            index->accept(*this);
+        }
+        auto Gep = builder->create_gep(var,{CONST_INT(0),dynamic_cast<ConstantInt *>(tmp_val)});
+        var = Gep;
+        if (var->get_type()->is_integer_type()) {
+            auto val_const = dynamic_cast<ConstantInt *>(var);
+            if (val_const != nullptr)
+            {
+                tmp_val = val_const;
+            }
+            else
+            {
+                tmp_val = builder->create_load(var);
+            }
+        }
+        else if (var->get_type()->is_float_type()) {
+            auto val_const = dynamic_cast<ConstantFloat *>(var);
+            if (val_const != nullptr)
+            {
+                tmp_val = val_const;
+            }
+            else
+            {
+                tmp_val = builder->create_load(var);
+            }
+        }
     }
 }
 
