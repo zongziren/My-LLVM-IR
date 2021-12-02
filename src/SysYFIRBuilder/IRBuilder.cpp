@@ -4,6 +4,8 @@
 #define CONST_FLOAT(num) ConstantFloat::get(num, module.get())
 
 // You can define global variables and functions here
+auto t_initializer;
+int t_num_elements;
 // to store state
 
 // store temporary value
@@ -39,9 +41,105 @@ void IRBuilder::visit(SyntaxTree::FuncFParamList &node) {}
 
 void IRBuilder::visit(SyntaxTree::FuncParam &node) {}
 
-void IRBuilder::visit(SyntaxTree::VarDef &node) {}
+void IRBuilder::visit(SyntaxTree::VarDef &node) {
+    if (this->scope.in_global()) {
+        //全局变量
+        if (node.array_length.empty()) {
+            //不是数组
+            if (node.is_inited) {
+                //已初始化
+                node.initializers->accept(*this);
+                if (node.btype == SyntaxTree::Type::INT) {
+                    auto t = GlobalVariable::create(node.name, this->module, Int32Type, false, t_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::FLOAT) {
+                    auto t = GlobalVariable::create(node.name, this->module, FloatType, false, t_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::BOOL) {
+                    auto t = GlobalVariable::create(node.name, this->module, Int1Type, false, t_initializer);
+                    this->scope.push(node.name,&t);
+                }
+            }
+            else {
+                //未初始化
+                if (node.btype == SyntaxTree::Type::INT) {
+                    auto zero_initializer = ConstantZero::get(Int32Type, this->module);
+                    auto t = GlobalVariable::create(node.name, this->module, Int32Type, false, zero_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::FLOAT) {
+                    auto zero_initializer = ConstantZero::get(FloatType, this->module);
+                    auto t = GlobalVariable::create(node.name, this->module, FloatType, false, zero_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::BOOL) {
+                    auto zero_initializer = ConstantZero::get(Int1Type, this->module);
+                    auto t = GlobalVariable::create(node.name, this->module, Int1Type, false, zero_initializer);
+                    this->scope.push(node.name,&t);
+                }
+            }
+        }
+        else {
+            //是数组
+            if (node.is_inited) {
+                //已初始化
+                for (auto length : node.array_length) {
+                    length->accept(*this);
+                }
+                node.initializers->accept(*this);
+                if (node.btype == SyntaxTree::Type::INT) {
+                    auto *arrayType_t = ArrayType::get(Int32Type, t_num_elements);
+                    auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, t_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::FLOAT) {
+                    auto *arrayType_t = ArrayType::get(FloatType, t_num_elements);
+                    auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, t_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::BOOL) {
+                    auto *arrayType_t = ArrayType::get(Int1Type, t_num_elements);
+                    auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, t_initializer);
+                    this->scope.push(node.name,&t);
+                }
+            }
+            else {
+                //未初始化
+                for (auto length : node.array_length) {
+                    length->accept(*this);
+                }
+                if (node.btype == SyntaxTree::Type::INT) {
+                    zero_initializer = ConstantZero::get(Int32Type, this->module);
+                    auto *arrayType_t = ArrayType::get(Int32Type, t_num_elements);
+                    auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, zero_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::FLOAT) {
+                    zero_initializer = ConstantZero::get(FloatType, this->module);
+                    auto *arrayType_t = ArrayType::get(FloatType, t_num_elements);
+                    auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, zero_initializer);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::BOOL) {
+                    zero_initializer = ConstantZero::get(Int1Type, this->module);
+                    auto *arrayType_t = ArrayType::get(Int1Type, t_num_elements);
+                    auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, zero_initializer);
+                    this->scope.push(node.name,&t);
+                }
+            }
+        }
+    }
+    else {
+        //局部变量
 
-void IRBuilder::visit(SyntaxTree::LVal &node) {}
+    }
+}
+
+void IRBuilder::visit(SyntaxTree::LVal &node) {
+
+}
 
 void IRBuilder::visit(SyntaxTree::AssignStmt &node) {}
 
