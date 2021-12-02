@@ -6,7 +6,11 @@
 // You can define global variables and functions here
 auto t_initializer;
 int t_num_elements;
+int init_val;
+std::vector<Constant *> init_val_array;
 // to store state
+bool is_array;
+bool is_initval;
 
 // store temporary value
 Value *tmp_val = nullptr;
@@ -33,7 +37,23 @@ void IRBuilder::visit(SyntaxTree::Assembly &node) {
 
 // You need to fill them
 
-void IRBuilder::visit(SyntaxTree::InitVal &node) {}
+void IRBuilder::visit(SyntaxTree::InitVal &node) {
+    if (node.isExp) {
+        is_initval = true;
+        node.expr->accept(*this);
+        is_initval = false;
+        t_initializer = CONST_INT(init_val);
+    }
+    else {
+        init_val_array.clear();
+        for (auto element : node.elementList) {
+            is_initval = true;
+            node.element->accept(*this);
+            is_initval = false;
+            init_val_array.push_back(CONST_INT(init_val));
+        }
+    }
+}
 
 void IRBuilder::visit(SyntaxTree::FuncDef &node) {}
 
@@ -48,7 +68,9 @@ void IRBuilder::visit(SyntaxTree::VarDef &node) {
             //不是数组
             if (node.is_inited) {
                 //已初始化
+                is_initval = true;
                 node.initializers->accept(*this);
+                is_initval = false;
                 if (node.btype == SyntaxTree::Type::INT) {
                     auto t = GlobalVariable::create(node.name, this->module, Int32Type, false, t_initializer);
                     this->scope.push(node.name,&t);
@@ -86,21 +108,28 @@ void IRBuilder::visit(SyntaxTree::VarDef &node) {
             if (node.is_inited) {
                 //已初始化
                 for (auto length : node.array_length) {
+                    is_array = true;
                     length->accept(*this);
+                    is_array = false;
                 }
+                is_initval = true;
                 node.initializers->accept(*this);
+                is_initval = false;
                 if (node.btype == SyntaxTree::Type::INT) {
                     auto *arrayType_t = ArrayType::get(Int32Type, t_num_elements);
+                    t_initializer = ConstantArray::get(arrayType_t, init_val_array);
                     auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, t_initializer);
                     this->scope.push(node.name,&t);
                 }
                 else if (node.btype == SyntaxTree::Type::FLOAT) {
                     auto *arrayType_t = ArrayType::get(FloatType, t_num_elements);
+                    t_initializer = ConstantArray::get(arrayType_t, init_val_array);
                     auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, t_initializer);
                     this->scope.push(node.name,&t);
                 }
                 else if (node.btype == SyntaxTree::Type::BOOL) {
                     auto *arrayType_t = ArrayType::get(Int1Type, t_num_elements);
+                    t_initializer = ConstantArray::get(arrayType_t, init_val_array);
                     auto t = GlobalVariable::create(node.name, this->module, arrayType_t, false, t_initializer);
                     this->scope.push(node.name,&t);
                 }
@@ -108,7 +137,9 @@ void IRBuilder::visit(SyntaxTree::VarDef &node) {
             else {
                 //未初始化
                 for (auto length : node.array_length) {
+                    is_array = true;
                     length->accept(*this);
+                    is_array = false;
                 }
                 if (node.btype == SyntaxTree::Type::INT) {
                     zero_initializer = ConstantZero::get(Int32Type, this->module);
@@ -133,7 +164,55 @@ void IRBuilder::visit(SyntaxTree::VarDef &node) {
     }
     else {
         //局部变量
-
+        if (node.array_length.empty()) {
+            //不是数组
+            if (node.is_inited) {
+                //已初始化
+            }
+            else {
+                //未初始化
+                if (node.btype == SyntaxTree::Type::INT) {
+                    auto t = this->builder->create_alloca(Int32Type);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::FLOAT) {
+                    auto t = this->builder->create_alloca(FloatType);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::BOOL) {
+                    auto t = this->builder->create_alloca(Int1Type);
+                    this->scope.push(node.name,&t);
+                }
+            }
+        }
+        else {
+            //是数组
+            if (node.is_inited) {
+                //已初始化
+            }
+            else {
+                //未初始化
+                for (auto length : node.array_length) {
+                    is_array = true;
+                    length->accept(*this);
+                    is_array = false;
+                }
+                if (node.btype == SyntaxTree::Type::INT) {
+                    auto *arrayType_t = ArrayType::get(Int32Type, t_num_elements);
+                    auto t = this->builder->create_alloca(arrayType_t);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::FLOAT) {
+                    auto *arrayType_t = ArrayType::get(FloatType, t_num_elements);
+                    auto t = this->builder->create_alloca(arrayType_t);
+                    this->scope.push(node.name,&t);
+                }
+                else if (node.btype == SyntaxTree::Type::BOOL) {
+                    auto *arrayType_t = ArrayType::get(Int1Type, t_num_elements);
+                    auto t = this->builder->create_alloca(arrayType_t);
+                    this->scope.push(node.name,&t);
+            }
+        }
     }
 }
 
@@ -143,7 +222,11 @@ void IRBuilder::visit(SyntaxTree::LVal &node) {
 
 void IRBuilder::visit(SyntaxTree::AssignStmt &node) {}
 
-void IRBuilder::visit(SyntaxTree::Literal &node) {}
+void IRBuilder::visit(SyntaxTree::Literal &node) {
+    if (is_array) {
+        t_num_elements = node.int_const;
+    }
+}
 
 void IRBuilder::visit(SyntaxTree::ReturnStmt &node) {}
 
