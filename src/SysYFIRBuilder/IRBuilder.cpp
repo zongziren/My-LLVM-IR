@@ -8,6 +8,7 @@ auto t_initializer;
 int t_num_elements;
 int init_val;
 std::vector<Constant *> init_val_array;
+std::vector<Type *> funcparam_type;
 // to store state
 bool is_array;
 bool is_initval;
@@ -48,14 +49,16 @@ void IRBuilder::visit(SyntaxTree::InitVal &node) {
         init_val_array.clear();
         for (auto element : node.elementList) {
             is_initval = true;
-            node.element->accept(*this);
+            element->accept(*this);
             is_initval = false;
             init_val_array.push_back(CONST_INT(init_val));
         }
     }
 }
 
-void IRBuilder::visit(SyntaxTree::FuncDef &node) {}
+void IRBuilder::visit(SyntaxTree::FuncDef &node) {
+    
+}
 
 void IRBuilder::visit(SyntaxTree::FuncFParamList &node) {}
 
@@ -72,7 +75,7 @@ void IRBuilder::visit(SyntaxTree::VarDef &node) {
                 node.initializers->accept(*this);
                 is_initval = false;
                 if (node.btype == SyntaxTree::Type::INT) {
-                    auto t = GlobalVariable::create(node.name, this->module, Int32Type, false, t_initializer);
+                    auto t = GlobalVariable::create(node.name, this->module.get(), Int32Type, false, t_initializer);
                     this->scope.push(node.name,&t);
                 }
                 else if (node.btype == SyntaxTree::Type::FLOAT) {
