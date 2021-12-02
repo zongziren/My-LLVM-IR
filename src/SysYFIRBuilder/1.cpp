@@ -380,6 +380,7 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
                             length->accept(*this);
                         }
                         array_sizes = dynamic_cast<ConstantInt *>(tmp_val)->get_value();
+                        position = 0;
                         node.initializers->accept(*this);
                         auto *arrayType = ArrayType::get(INT32_T,array_sizes);
                         std::vector<Constant *> initi_value_t;
@@ -408,15 +409,24 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
                 else
                 //非全局变量
                 {
-                    /*
-                    var = builder->create_alloca(INT32_T);
+                    for (auto length : node.array_length) {
+                            position = 0;
+                            length->accept(*this);
+                    }
+                    array_sizes = dynamic_cast<ConstantInt *>(tmp_val)->get_value();
+                    auto *arrayType = ArrayType::get(INT32_T,array_sizes);
+                    var = builder->create_alloca(arrayType);
                     if (node.is_inited)
                     {
+                        position = 0;
                         node.initializers->accept(*this);
-                        builder->create_store(tmp_val, var);
+                        for (int i = 0; i < array_sizes; i++) {
+                            tmp_val = initval.find(i)->second;
+                            auto Gep = builder->create_gep(var,{CONST_INT(0),CONST_INT(i)});
+                            builder->create_store(tmp_val, Gep);
+                        }
                     }
                     scope.push(node.name, var);
-                    */
                 }
             }
             else if (node.btype == SyntaxTree::Type::FLOAT)
@@ -461,6 +471,24 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
                 else
                 //非全局变量
                 {
+                    for (auto length : node.array_length) {
+                            position = 0;
+                            length->accept(*this);
+                    }
+                    array_sizes = dynamic_cast<ConstantInt *>(tmp_val)->get_value();
+                    auto *arrayType = ArrayType::get(FLOAT_T,array_sizes);
+                    var = builder->create_alloca(arrayType);
+                    if (node.is_inited)
+                    {
+                        position = 0;
+                        node.initializers->accept(*this);
+                        for (int i = 0; i < array_sizes; i++) {
+                            tmp_val = initval.find(i)->second;
+                            auto Gep = builder->create_gep(var,{CONST_INT(0),CONST_INT(i)});
+                            builder->create_store(tmp_val, Gep);
+                        }
+                    }
+                    scope.push(node.name, var);
                     /*
                     var = builder->create_alloca(INT32_T);
                     if (node.is_inited)
@@ -495,6 +523,7 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
     else
     //数组
     {
+
     }
 }
 
