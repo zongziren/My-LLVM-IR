@@ -144,6 +144,7 @@ void IRBuilder::visit(SyntaxTree::FuncDef &node)
     scope.enter();                    //进入新的作用域
 
     //函数形参在作用域分配空间
+    auto argnum = function->get_num_of_args();
     std::vector<Value *> args; //存储形参初值
     for (auto i : function->get_args())
         args.push_back(i);
@@ -512,48 +513,99 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
     }
 }
 
+// void IRBuilder::visit(SyntaxTree::LVal &node)
+// {
+//     auto var = scope.find(node.name, 0);
+//     if (node.array_index.empty())
+//     //非数组
+//     {
+//         if (var->get_type()->get_pointer_element_type()->is_integer_type())
+//         {
+//             auto val_const = dynamic_cast<ConstantInt *>(var);
+//             if (val_const != nullptr)
+//             {
+//                 tmp_val = val_const;
+//             }
+//             else
+//             {
+//                 tmp_val = var;
+//             }
+//         }
+//         else if (var->get_type()->get_pointer_element_type()->is_float_type())
+//         {
+//             auto val_const = dynamic_cast<ConstantFloat *>(var);
+//             if (val_const != nullptr)
+//             {
+//                 tmp_val = val_const;
+//             }
+//             else
+//             {
+//                 tmp_val = var;
+//             }
+//         }
+//     }
+//     else
+//     //数组
+//     {
+//         for (auto index : node.array_index)
+//         {
+//             index->accept(*this);
+//         }
+//         auto Gep = builder->create_gep(var, {CONST_INT(0), dynamic_cast<ConstantInt *>(tmp_val)});
+//         var = Gep;
+//         if (var->get_type()->get_pointer_element_type()->is_integer_type())
+//         {
+//             auto val_const = dynamic_cast<ConstantInt *>(var);
+//             if (val_const != nullptr)
+//             {
+//                 tmp_val = val_const;
+//             }
+//             else
+//             {
+//                 tmp_val = var;
+//             }
+//         }
+//         else if (var->get_type()->get_array_element_type()->is_float_type())
+//         {
+//             auto val_const = dynamic_cast<ConstantFloat *>(var);
+//             if (val_const != nullptr)
+//             {
+//                 tmp_val = val_const;
+//             }
+//             else
+//             {
+//                 tmp_val = var;
+//             }
+//         }
+//     }
+// }
+
 void IRBuilder::visit(SyntaxTree::LVal &node)
 {
+    // FIXME:may have bug
     auto var = scope.find(node.name, false);
+    bool should_return_lvalue = require_lvalue;
+    require_lvalue = false;
     if (node.array_index.empty())
-    //非数组
     {
-        if (var->get_type() == INT32_T)
+        if (should_return_lvalue)
         {
-            auto val_const = dynamic_cast<ConstantInt *>(var);
-            if (val_const != nullptr)
+            if (var->get_type()->get_pointer_element_type()->is_array_type())
             {
-                tmp_val = val_const;
+                tmp_val = builder->create_gep(var, {CONST_INT(0), CONST_INT(0)});
+            }
+            else if (var->get_type()->get_pointer_element_type()->is_pointer_type())
+            {
+                tmp_val = builder->create_load(var);
             }
             else
             {
                 tmp_val = var;
             }
+            require_lvalue = false;
         }
         else
         {
-            auto val_const = dynamic_cast<ConstantFloat *>(var);
-            if (val_const != nullptr)
-            {
-                tmp_val = val_const;
-            }
-            else
-            {
-                tmp_val = var;
-            }
-        }
-    }
-    else
-    //数组
-    {
-        for (auto index : node.array_index)
-        {
-            index->accept(*this);
-        }
-        auto Gep = builder->create_gep(var, {CONST_INT(0), dynamic_cast<ConstantInt *>(tmp_val)});
-        var = Gep;
-        if (var->get_type()->is_integer_type())
-        {
             auto val_const = dynamic_cast<ConstantInt *>(var);
             if (val_const != nullptr)
             {
@@ -564,19 +616,73 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
                 tmp_val = builder->create_load(var);
             }
         }
-        else if (var->get_type()->is_float_type())
-        {
-            auto val_const = dynamic_cast<ConstantFloat *>(var);
-            if (val_const != nullptr)
-            {
-                tmp_val = val_const;
-            }
-            else
-            {
-                tmp_val = builder->create_load(var);
-            }
-        }
     }
+    //   else {
+    //     auto var_sizes = scope.find_size(node.name);
+    //     std::vector<Value *>all_index;
+    //     Value *var_index = nullptr;
+    //     int index_const = 0;
+    //     bool const_check = true;
+
+    //     auto const_array = scope.find_const(node.name);
+    //     if (const_array == nullptr){
+    //       const_check = false;
+    //     }
+
+    //     for (int i = 0; i < node.array_index.size(); i++){
+    //       node.array_index[i]->accept(*this);
+    //       all_index.push_back(tmp_val);
+    //       if (const_check == true){
+    //         auto tmp_const = dynamic_cast<ConstantInt *>(tmp_val);
+    //         if (tmp_const == nullptr){
+    //           const_check = false;
+    //         }
+    //         else{
+    //           index_const = var_sizes[i + 1] * tmp_const->get_value() + index_const;
+    //         }
+    //       }
+    //     }
+
+    //     if (should_return_lvalue==false && const_check){
+    //       ConstantInt *tmp_const = dynamic_cast<ConstantInt *>(const_array->get_element_value(index_const));
+    //       tmp_val = CONST_INT(tmp_const->get_value());
+    //     }
+    //     else{
+    //       for (int i = 0; i < all_index.size(); i++) {
+    //         auto index_val = all_index[i];
+    //         Value *one_index;
+    //         if (var_sizes[i + 1] > 1){
+    //           one_index = builder->create_imul(CONST_INT(var_sizes[i + 1]), index_val);
+    //         }
+    //         else{
+    //           one_index = index_val;
+    //         }
+    //         if (var_index == nullptr) {
+    //           var_index = one_index;
+    //         }
+    //         else {
+    //           var_index = builder->create_iadd(var_index, one_index);
+    //         }
+    //       } // end for
+    //       if (node.array_index.size() > 1 || 1) {
+    //         Value * tmp_ptr;
+    //         if (var->get_type()->get_pointer_element_type()->is_pointer_type()) {
+    //           auto tmp_load = builder->create_load(var);
+    //           tmp_ptr = builder->create_gep(tmp_load, {var_index});
+    //         }
+    //         else {
+    //           tmp_ptr = builder->create_gep(var, {CONST_INT(0), var_index});
+    //         }
+    //         if (should_return_lvalue) {
+    //           tmp_val = tmp_ptr;
+    //           require_lvalue = false;
+    //         }
+    //         else {
+    //           tmp_val = builder->create_load(tmp_ptr);
+    //         }
+    //       }
+    //     }
+    //   }
 }
 
 void IRBuilder::visit(SyntaxTree::AssignStmt &node)
@@ -586,13 +692,22 @@ void IRBuilder::visit(SyntaxTree::AssignStmt &node)
     require_lvalue = true;
     node.target->accept(*this);
     auto addr = tmp_val;
+    if ((result->get_type()->is_float_type() && addr->get_type()->is_integer_type()) ||
+        (result->get_type()->is_integer_type() && addr->get_type()->is_float_type()))
+    {
+        result = builder->create_fptosi(result, addr->get_type());
+    }
+
     builder->create_store(result, addr);
     tmp_val = result;
 }
 
 void IRBuilder::visit(SyntaxTree::Literal &node)
 {
-    tmp_val = CONST_INT(node.int_const);
+    if (node.literal_type == SyntaxTree::Type::INT)
+        tmp_val = CONST_INT(node.int_const);
+    else
+        tmp_val = CONST_FLOAT(node.float_const);
 }
 
 void IRBuilder::visit(SyntaxTree::ReturnStmt &node)
@@ -649,6 +764,10 @@ void IRBuilder::visit(SyntaxTree::UnaryCondExpr &node)
 void IRBuilder::visit(SyntaxTree::BinaryCondExpr &node)
 {
     CmpInst *cond_val;
+    FCmpInst *fcond_val;
+    bool is_float;
+    bool is_int;
+    bool is_literal;
     if (node.op == SyntaxTree::BinaryCondOp::LAND)
     {
         auto trueBB = BasicBlock::create(module.get(), "", cur_function);
@@ -656,12 +775,29 @@ void IRBuilder::visit(SyntaxTree::BinaryCondExpr &node)
         node.lhs->accept(*this);
         IF_While_And_Cond_Stack.pop_back();
         auto ret_val = tmp_val;
+        is_float = ret_val->get_type()->is_float_type();
+        is_int = ret_val->get_type()->is_integer_type();
+
         cond_val = dynamic_cast<CmpInst *>(ret_val);
-        if (cond_val == nullptr)
+        fcond_val = dynamic_cast<FCmpInst *>(ret_val);
+        is_literal = (cond_val == nullptr && fcond_val == nullptr);
+        if (is_literal) //是一个literal 类型
         {
-            cond_val = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+            if (is_float) //浮点数类型
+            {
+                fcond_val = builder->create_fcmp_ne(tmp_val, CONST_FLOAT(0));
+                // builder->create_cond_br(fcond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
+            }
+            else //整数类型
+            {
+                cond_val = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+                // builder->create_cond_br(cond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
+            }
         }
-        builder->create_cond_br(cond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
+        if ((is_literal && is_float) || fcond_val != nullptr)
+            builder->create_cond_br(fcond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
+        else //可能有bug
+            builder->create_cond_br(cond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
         builder->set_insert_point(trueBB);
         node.rhs->accept(*this);
     }
@@ -672,16 +808,34 @@ void IRBuilder::visit(SyntaxTree::BinaryCondExpr &node)
         node.lhs->accept(*this);
         IF_While_Or_Cond_Stack.pop_back();
         auto ret_val = tmp_val;
+        is_float = ret_val->get_type()->is_float_type();
+        is_int = ret_val->get_type()->is_integer_type();
+
         cond_val = dynamic_cast<CmpInst *>(ret_val);
-        if (cond_val == nullptr)
+        fcond_val = dynamic_cast<FCmpInst *>(ret_val);
+        is_literal = (cond_val == nullptr && fcond_val == nullptr);
+        if (is_literal) //是一个literal 类型
         {
-            cond_val = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+            if (is_float) //浮点数类型
+            {
+                fcond_val = builder->create_fcmp_ne(tmp_val, CONST_FLOAT(0));
+                // builder->create_cond_br(fcond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
+            }
+            else //整数类型
+            {
+                cond_val = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+                // builder->create_cond_br(cond_val, trueBB, IF_While_Or_Cond_Stack.back().falseBB);
+            }
         }
-        builder->create_cond_br(cond_val, IF_While_Or_Cond_Stack.back().trueBB, falseBB);
+
+        if ((is_literal && is_float) || fcond_val != nullptr)
+            builder->create_cond_br(fcond_val, IF_While_Or_Cond_Stack.back().trueBB, falseBB);
+        else
+            builder->create_cond_br(cond_val, IF_While_Or_Cond_Stack.back().trueBB, falseBB);
         builder->set_insert_point(falseBB);
         node.rhs->accept(*this);
     }
-    else
+    else //小于大于关系，这里只考虑lval和rval为literal或者expr，不可能为cond
     {
         node.lhs->accept(*this);
         auto l_val = tmp_val;
@@ -723,58 +877,167 @@ void IRBuilder::visit(SyntaxTree::BinaryExpr &node)
     } //出错的情况（猜测）
     else
     {
+        bool is_lint, is_rint;
         node.lhs->accept(*this);
-        auto l_val_const = dynamic_cast<ConstantInt *>(tmp_val);
+        auto l_val_const_int = dynamic_cast<ConstantInt *>(tmp_val);
+        auto l_val_const_float = dynamic_cast<ConstantFloat *>(tmp_val);
         auto l_val = tmp_val;
+
         node.rhs->accept(*this);
-        auto r_val_const = dynamic_cast<ConstantInt *>(tmp_val);
+        auto r_val_const_int = dynamic_cast<ConstantInt *>(tmp_val);
+        auto r_val_const_float = dynamic_cast<ConstantFloat *>(tmp_val);
         auto r_val = tmp_val;
+
+        is_lint = l_val->get_type()->is_integer_type();
+        is_rint = r_val->get_type()->is_integer_type();
+        if (dynamic_cast<ConstantInt *>(r_val) && dynamic_cast<ConstantInt *>(r_val)->get_value() == 2)
+            std::cout << ((is_lint) ? "true" : "false") << ' ' << ((is_rint) ? "true" : "false");
         switch (node.op)
         {
         case SyntaxTree::BinOp::PLUS:
-            if (r_val_const != nullptr && l_val_const != nullptr)
+            if (r_val_const_int != nullptr && l_val_const_int != nullptr)
             {
-                tmp_val = CONST_INT(l_val_const->get_value() + r_val_const->get_value());
-            } //常数先计算
+                tmp_val = CONST_INT(l_val_const_int->get_value() + r_val_const_int->get_value());
+            } //整数常数先计算
+            else if (r_val_const_float != nullptr && l_val_const_float != nullptr)
+            {
+                tmp_val = CONST_FLOAT(l_val_const_float->get_value() +
+                                      r_val_const_float->get_value());
+            } //浮点数常数先计算
             else
             {
-                tmp_val = builder->create_iadd(l_val, r_val);
+                if (is_lint && is_rint) //全是整数
+                {
+                    tmp_val = builder->create_iadd(l_val, r_val);
+                }
+                else
+                {
+                    if (!is_lint && !is_rint) //全是浮点数
+                    {
+                        tmp_val = builder->create_fadd(l_val, r_val);
+                    }
+                    else
+                    {
+                        if (!is_lint) // lhs是浮点数，转换rhs
+                            r_val = builder->create_sitofp(r_val, l_val->get_type());
+                        else //反过来
+                        {
+                            l_val = builder->create_sitofp(l_val, r_val->get_type());
+                        }
+                        tmp_val = builder->create_fadd(l_val, r_val);
+                    }
+                }
             }
             break;
         case SyntaxTree::BinOp::MINUS:
-            if (r_val_const != nullptr && l_val_const != nullptr)
+            if (r_val_const_int != nullptr && l_val_const_int != nullptr)
             {
-                tmp_val = CONST_INT(l_val_const->get_value() - r_val_const->get_value());
+                tmp_val = CONST_INT(l_val_const_int->get_value() - r_val_const_int->get_value());
             }
+            else if (r_val_const_float != nullptr && l_val_const_float != nullptr)
+            {
+                tmp_val = CONST_FLOAT(l_val_const_float->get_value() -
+                                      r_val_const_float->get_value());
+            } //浮点数常数先计算
             else
             {
-                tmp_val = builder->create_isub(l_val, r_val);
+                if (is_lint && is_rint) //全是整数
+                {
+                    tmp_val = builder->create_isub(l_val, r_val);
+                }
+                else
+                {
+                    if (!is_lint && !is_rint) //全是浮点数
+                    {
+                        tmp_val = builder->create_fsub(l_val, r_val);
+                    }
+                    else
+                    {
+                        if (!is_lint) // lhs是浮点数，转换rhs
+                            r_val = builder->create_sitofp(r_val, l_val->get_type());
+                        else //反过来
+                        {
+                            l_val = builder->create_sitofp(l_val, r_val->get_type());
+                        }
+                        tmp_val = builder->create_fsub(l_val, r_val);
+                    }
+                }
             }
             break;
         case SyntaxTree::BinOp::MULTIPLY:
-            if (r_val_const != nullptr && l_val_const != nullptr)
+            if (r_val_const_int != nullptr && l_val_const_int != nullptr)
             {
-                tmp_val = CONST_INT(l_val_const->get_value() * r_val_const->get_value());
+                tmp_val = CONST_INT(l_val_const_int->get_value() * r_val_const_int->get_value());
             }
+            else if (r_val_const_float != nullptr && l_val_const_float != nullptr)
+            {
+                tmp_val = CONST_FLOAT(l_val_const_float->get_value() -
+                                      r_val_const_float->get_value());
+            } //浮点数常数先计算
             else
             {
-                tmp_val = builder->create_imul(l_val, r_val);
+                if (is_lint && is_rint) //全是整数
+                {
+                    tmp_val = builder->create_imul(l_val, r_val);
+                }
+                else
+                {
+                    if (!is_lint && !is_rint) //全是浮点数
+                    {
+                        tmp_val = builder->create_fmul(l_val, r_val);
+                    }
+                    else
+                    {
+                        if (!is_lint) // lhs是浮点数，转换rhs
+                            r_val = builder->create_sitofp(r_val, l_val->get_type());
+                        else //反过来
+                        {
+                            l_val = builder->create_sitofp(l_val, r_val->get_type());
+                        }
+                        tmp_val = builder->create_fmul(l_val, r_val);
+                    }
+                }
             }
             break;
         case SyntaxTree::BinOp::DIVIDE:
-            if (r_val_const != nullptr && l_val_const != nullptr)
+            if (r_val_const_int != nullptr && l_val_const_int != nullptr)
             {
-                tmp_val = CONST_INT(l_val_const->get_value() / r_val_const->get_value());
+                tmp_val = CONST_INT(l_val_const_int->get_value() / r_val_const_int->get_value());
             }
+            else if (r_val_const_float != nullptr && l_val_const_float != nullptr)
+            {
+                tmp_val = CONST_FLOAT(l_val_const_float->get_value() -
+                                      r_val_const_float->get_value());
+            } //浮点数常数先计算
             else
             {
-                tmp_val = builder->create_isdiv(l_val, r_val);
+                if (is_lint && is_rint) //全是整数
+                {
+                    tmp_val = builder->create_isdiv(l_val, r_val);
+                }
+                else
+                {
+                    if (!is_lint && !is_rint) //全是浮点数
+                    {
+                        tmp_val = builder->create_fdiv(l_val, r_val);
+                    }
+                    else
+                    {
+                        if (!is_lint) // lhs是浮点数，转换rhs
+                            r_val = builder->create_sitofp(r_val, l_val->get_type());
+                        else //反过来
+                        {
+                            l_val = builder->create_sitofp(l_val, r_val->get_type());
+                        }
+                        tmp_val = builder->create_fdiv(l_val, r_val);
+                    }
+                }
             }
             break;
         case SyntaxTree::BinOp::MODULO:
-            if (r_val_const != nullptr && l_val_const != nullptr)
+            if (r_val_const_int != nullptr && l_val_const_int != nullptr)
             {
-                tmp_val = CONST_INT(l_val_const->get_value() % r_val_const->get_value());
+                tmp_val = CONST_INT(l_val_const_int->get_value() % r_val_const_int->get_value());
             }
             else
             {
@@ -787,19 +1050,37 @@ void IRBuilder::visit(SyntaxTree::BinaryExpr &node)
 void IRBuilder::visit(SyntaxTree::UnaryExpr &node)
 {
     node.rhs->accept(*this);
+    bool is_int, is_float;
     if (node.op == SyntaxTree::UnaryOp::MINUS)
     {
-        auto val_const = dynamic_cast<ConstantInt *>(tmp_val); // ConstInt
-        auto r_val = tmp_val;
-        if (val_const != nullptr)
+        auto val_const_int = dynamic_cast<ConstantInt *>(tmp_val);     // ConstInt
+        auto val_const_float = dynamic_cast<ConstantFloat *>(tmp_val); // ConstFloat;
+        if (tmp_val->get_type()->is_integer_type())
+        //是整数
         {
-            tmp_val = CONST_INT(0 - val_const->get_value());
-        } //是常数
+            auto r_val = tmp_val;
+            if (val_const_int != nullptr)
+            {
+                tmp_val = CONST_INT(0 - val_const_int->get_value());
+            } //是常数
+            else
+            {
+                tmp_val = builder->create_isub(CONST_INT(0), r_val);
+            } //非常数
+        }
         else
         {
-            tmp_val = builder->create_isub(CONST_INT(0), r_val);
-        } //非常数
-    }     //目前只考虑了整数的情况
+            auto r_val = tmp_val;
+            if (val_const_float != nullptr)
+            {
+                tmp_val = CONST_FLOAT(0 - val_const_float->get_value());
+            } //是常数
+            else
+            {
+                tmp_val = builder->create_fsub(CONST_FLOAT(0), r_val);
+            } //非常数
+        }
+    } //
 }
 
 void IRBuilder::visit(SyntaxTree::FuncCallStmt &node)
@@ -849,18 +1130,28 @@ void IRBuilder::visit(SyntaxTree::IfStmt &node)
     node.cond_exp->accept(*this);
     IF_While_Or_Cond_Stack.pop_back();
     auto ret_val = tmp_val;
-    auto *cond_val = dynamic_cast<CmpInst *>(ret_val);
-    if (cond_val == nullptr)
+    auto *cond_val_int = dynamic_cast<CmpInst *>(ret_val);
+    auto *cond_val_float = dynamic_cast<FCmpInst *>(ret_val);
+    if (cond_val_int == nullptr && cond_val_float == nullptr)
     {
-        cond_val = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+        if (ret_val->get_type()->is_integer_type())
+            cond_val_int = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+        else
+            cond_val_float = builder->create_fcmp_ne(tmp_val, CONST_FLOAT(0));
     } //同下while
     if (node.else_statement == nullptr)
     {
-        builder->create_cond_br(cond_val, trueBB, nextBB);
+        if (cond_val_float == nullptr)
+            builder->create_cond_br(cond_val_int, trueBB, nextBB);
+        else
+            builder->create_cond_br(cond_val_float, trueBB, nextBB);
     }
     else
     {
-        builder->create_cond_br(cond_val, trueBB, falseBB);
+        if (cond_val_float == nullptr)
+            builder->create_cond_br(cond_val_int, trueBB, falseBB);
+        else
+            builder->create_cond_br(cond_val_float, trueBB, falseBB);
     }
     cur_bb.pop_back(); //同样，为什么pop
     builder->set_insert_point(trueBB);
@@ -934,12 +1225,19 @@ void IRBuilder::visit(SyntaxTree::WhileStmt &node)
     node.cond_exp->accept(*this);
     IF_While_Or_Cond_Stack.pop_back();
     auto ret_val = tmp_val;
-    auto *cond_val = dynamic_cast<CmpInst *>(ret_val);
-    if (cond_val == nullptr)
+    auto *cond_val_int = dynamic_cast<CmpInst *>(ret_val);
+    auto *cond_val_float = dynamic_cast<FCmpInst *>(ret_val);
+    if (cond_val_int == nullptr && cond_val_float == nullptr)
     {
-        cond_val = builder->create_icmp_ne(tmp_val, CONST_INT(0));
-    }                                                  // cond_val为空表示非逻辑值，此时判断表达式的值是否不等于0，不等于0为真
-    builder->create_cond_br(cond_val, trueBB, nextBB); //其余情况就按cond_val来处理
+        if (ret_val->get_type()->is_integer_type())
+            cond_val_int = builder->create_icmp_ne(tmp_val, CONST_INT(0));
+        else
+            cond_val_float = builder->create_fcmp_ne(tmp_val, CONST_FLOAT(0));
+    } // cond_val为空表示非逻辑值，此时判断表达式的值是否不等于0，不等于0为真
+    if (cond_val_float == nullptr)
+        builder->create_cond_br(cond_val_int, trueBB, nextBB); //其余情况就按cond_val来处理
+    else
+        builder->create_cond_br(cond_val_float, trueBB, nextBB);
     builder->set_insert_point(trueBB);
     cur_bb.push_back(trueBB);
     if (dynamic_cast<SyntaxTree::BlockStmt *>(node.statement.get()))
