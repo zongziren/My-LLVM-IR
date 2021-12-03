@@ -1,4 +1,5 @@
 define dso_local i32 @add(i32 %0, i32 %1) #0 {
+2:
     %3 = alloca i32, align 4
     %4 = alloca i32, align 4
     %5 = alloca i32, align 4
