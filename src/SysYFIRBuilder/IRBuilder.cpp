@@ -498,15 +498,6 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
                         }
                     }
                     scope.push(node.name, var);
-                    /*
-                    var = builder->create_alloca(INT32_T);
-                    if (node.is_inited)
-                    {
-                        node.initializers->accept(*this);
-                        builder->create_store(tmp_val, var);
-                    }
-                    scope.push(node.name, var);
-                    */
                 }
             }
         }
@@ -582,7 +573,6 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
 
 void IRBuilder::visit(SyntaxTree::LVal &node)
 {
-    // FIXME:may have bug
     auto var = scope.find(node.name, false);
     bool should_return_lvalue = require_lvalue;
     require_lvalue = false;
@@ -590,11 +580,7 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
     {
         if (should_return_lvalue)
         {
-            if (var->get_type()->get_pointer_element_type()->is_array_type())
-            {
-                tmp_val = builder->create_gep(var, {CONST_INT(0), CONST_INT(0)});
-            }
-            else if (var->get_type()->get_pointer_element_type()->is_pointer_type())
+            if (var->get_type()->get_pointer_element_type()->is_pointer_type())
             {
                 tmp_val = builder->create_load(var);
             }
@@ -606,14 +592,29 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
         }
         else
         {
-            auto val_const = dynamic_cast<ConstantInt *>(var);
-            if (val_const != nullptr)
+            if (var->get_type()->is_integer_type())
             {
-                tmp_val = val_const;
+                auto val_const = dynamic_cast<ConstantInt *>(var);
+                if (val_const != nullptr)
+                {
+                    tmp_val = val_const;
+                }
+                else
+                {
+                    tmp_val = builder->create_load(var);
+                }
             }
             else
             {
-                tmp_val = builder->create_load(var);
+                auto val_const = dynamic_cast<ConstantFloat *>(var);
+                if (val_const != nullptr)
+                {
+                    tmp_val = val_const;
+                }
+                else
+                {
+                    tmp_val = builder->create_load(var);
+                }
             }
         }
     }
@@ -890,8 +891,6 @@ void IRBuilder::visit(SyntaxTree::BinaryExpr &node)
 
         is_lint = l_val->get_type()->is_integer_type();
         is_rint = r_val->get_type()->is_integer_type();
-        if (dynamic_cast<ConstantInt *>(r_val) && dynamic_cast<ConstantInt *>(r_val)->get_value() == 2)
-            std::cout << ((is_lint) ? "true" : "false") << ' ' << ((is_rint) ? "true" : "false");
         switch (node.op)
         {
         case SyntaxTree::BinOp::PLUS:
