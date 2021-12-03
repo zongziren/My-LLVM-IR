@@ -144,7 +144,6 @@ void IRBuilder::visit(SyntaxTree::FuncDef &node)
     scope.enter();                    //进入新的作用域
 
     //函数形参在作用域分配空间
-    auto argnum = function->get_num_of_args();
     std::vector<Value *> args; //存储形参初值
     for (auto i : function->get_args())
         args.push_back(i);
@@ -515,7 +514,7 @@ void IRBuilder::visit(SyntaxTree::VarDef &node)
 
 void IRBuilder::visit(SyntaxTree::LVal &node)
 {
-    auto var = scope.find(node.name, 0);
+    auto var = scope.find(node.name, false);
     if (node.array_index.empty())
     //非数组
     {
@@ -528,7 +527,7 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
             }
             else
             {
-                tmp_val = builder->create_load(var);
+                tmp_val = var;
             }
         }
         else
@@ -540,7 +539,7 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
             }
             else
             {
-                tmp_val = builder->create_load(var);
+                tmp_val = var;
             }
         }
     }
