@@ -793,6 +793,10 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
         {
           tmp_val = builder->create_load(var);
         }
+        else if (var->get_type()->get_pointer_element_type()->is_array_type())
+        {
+          tmp_val = builder->create_gep(var, {CONST_INT(0), CONST_INT(0)});
+        }
         else
         {
           tmp_val = var;
@@ -803,7 +807,6 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
       {
         if (var->get_type()->get_pointer_element_type()->is_integer_type())
         {
-
           auto val_const = dynamic_cast<ConstantInt *>(var);
           if (val_const != nullptr)
           {
@@ -838,7 +841,6 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
                             dynamic_cast<ConstantArray *>(dynamic_cast<GlobalVariable *>(var)->get_init());
       if (is_const_array && dynamic_cast<ConstantInt *>(tmp_val))
       { //是常数数组，并且下标可以直接算出来
-
         int indexID = dynamic_cast<ConstantInt *>(tmp_val)->get_value();
         tmp_val = dynamic_cast<ConstantArray *>(dynamic_cast<GlobalVariable *>(var)->get_init())->get_element_value(indexID);
       }
@@ -846,11 +848,22 @@ void IRBuilder::visit(SyntaxTree::LVal &node)
       {
         if (dynamic_cast<ConstantInt *>(tmp_val))
         { //下标直接算出来的
-          var = builder->create_gep(var, {CONST_INT(0), dynamic_cast<ConstantInt *>(tmp_val)});
+          if (var->get_type()->get_pointer_element_type()->is_array_type()){
+            var = builder->create_gep(var, {CONST_INT(0), dynamic_cast<ConstantInt *>(tmp_val)});
+          }
+          else {
+            auto var_t = builder->create_load(var);
+            var = builder->create_gep(var_t, {dynamic_cast<ConstantInt *>(tmp_val)});
+          }
         }
         else
         {
-          var = builder->create_gep(var, {CONST_INT(0), tmp_val});
+          if (var->get_type()->get_pointer_element_type()->is_array_type())
+            var = builder->create_gep(var, {CONST_INT(0), tmp_val});
+          else{
+            auto var_t = builder->create_load(var);
+            var = builder->create_gep(var_t, {tmp_val});
+          }
         }
         if (should_return_lvalue)
         {
