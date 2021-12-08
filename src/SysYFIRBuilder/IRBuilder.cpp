@@ -89,6 +89,7 @@ void IRBuilder::visit(SyntaxTree::InitVal &node)
     //在后面的赋值补0
     while (position < array_sizes)
     {
+      initval[position] = CONST_INT(0);
       constant_initval.push_back(CONST_INT(0));
       position++;
     }
