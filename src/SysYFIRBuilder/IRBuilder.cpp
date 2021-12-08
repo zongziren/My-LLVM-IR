@@ -1090,21 +1090,81 @@ void IRBuilder::visit(SyntaxTree::BinaryCondExpr &node)
     switch (node.op)
     {
     case SyntaxTree::BinaryCondOp::LT:
+      if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 32 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 1)
+      {
+        r_val = builder->create_zext(r_val, INT32_T);
+      }
+      else if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 1 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 32)
+      {
+        l_val = builder->create_zext(l_val, INT32_T);
+      }
       cmp = builder->create_icmp_lt(l_val, r_val);
       break;
     case SyntaxTree::BinaryCondOp::LTE:
+      if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 32 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 1)
+      {
+        r_val = builder->create_zext(r_val, INT32_T);
+      }
+      else if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 1 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 32)
+      {
+        l_val = builder->create_zext(l_val, INT32_T);
+      }
       cmp = builder->create_icmp_le(l_val, r_val);
       break;
     case SyntaxTree::BinaryCondOp::GTE:
+      if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 32 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 1)
+      {
+        r_val = builder->create_zext(r_val, INT32_T);
+      }
+      else if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 1 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 32)
+      {
+        l_val = builder->create_zext(l_val, INT32_T);
+      }
       cmp = builder->create_icmp_ge(l_val, r_val);
       break;
     case SyntaxTree::BinaryCondOp::GT:
+      if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 32 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 1)
+      {
+        r_val = builder->create_zext(r_val, INT32_T);
+      }
+      else if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 1 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 32)
+      {
+        l_val = builder->create_zext(l_val, INT32_T);
+      }
       cmp = builder->create_icmp_gt(l_val, r_val);
       break;
     case SyntaxTree::BinaryCondOp::EQ:
+      if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 32 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 1)
+      {
+        r_val = builder->create_zext(r_val, INT32_T);
+      }
+      else if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 1 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 32)
+      {
+        l_val = builder->create_zext(l_val, INT32_T);
+      }
       cmp = builder->create_icmp_eq(l_val, r_val);
       break;
     case SyntaxTree::BinaryCondOp::NEQ:
+      if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 32 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 1)
+      {
+        r_val = builder->create_zext(r_val, INT32_T);
+      }
+      else if (dynamic_cast<IntegerType *>(l_val->get_type())->get_num_bits() == 1 &&
+       dynamic_cast<IntegerType *>(r_val->get_type())->get_num_bits() == 32)
+      {
+        l_val = builder->create_zext(l_val, INT32_T);
+      }
       cmp = builder->create_icmp_ne(l_val, r_val);
       break;
     default:
@@ -1346,22 +1406,21 @@ void IRBuilder::visit(SyntaxTree::UnaryExpr &node)
         tmp_val = builder->create_isub(CONST_INT(0), r_val);
       } //非常数
     }
-    /*
     else if (tmp_val->get_type()->is_integer_type()
      && dynamic_cast<IntegerType *>(tmp_val->get_type())->get_num_bits() == 1)
     //是1位整数
     {
+      tmp_val = builder->create_zext(tmp_val, INT32_T);
       auto r_val = tmp_val;
       if (val_const_int != nullptr)
       {
-        tmp_val = CONST_INT((val_const_int->get_value() == 1));
+        tmp_val = CONST_INT(0 - val_const_int->get_value());
       } //是常数
       else
       {
-        tmp_val = builder->create_isub(CONST_INT(false), r_val);
+        tmp_val = builder->create_isub(CONST_INT(0), r_val);
       } //非常数
     }
-    */
     else if (tmp_val->get_type()->is_float_type())
     {
       auto r_val = tmp_val;
