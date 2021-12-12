@@ -27,10 +27,13 @@
 *.lib
 
 # Executables
-*.exe
-*.out
+*.exe0
 *.app
 
 
- .vscode
- build
+.vscode
+build
+
+go_upstairs.ll
+
+c

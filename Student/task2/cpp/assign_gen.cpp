@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 
+
 #ifdef DEBUG
 #define DEBUG_OUTPUT std::cout << __LINE__ << std::endl;
 #else
@@ -18,13 +19,16 @@
     ConstantInt::get(num, module)
 
 #define CONST_FP(num) \
+
     ConstantFloat::get(num, module)
 
 int main(){
+
     auto module = new Module("SysY code");
     auto builder = new IRStmtBuilder(nullptr, module);
     Type *Int32Type = Type::get_int32_type(module);
     Type *FloatType = Type::get_float_type(module);
+
 
     //main函数
     auto mainFun = Function::create(FunctionType::get(Int32Type, {}), "main", module);

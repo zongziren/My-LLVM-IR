@@ -7,12 +7,15 @@
 // to store state
 struct true_false_BB
 {
+
   BasicBlock *trueBB = nullptr;
   BasicBlock *falseBB = nullptr;
+
 };
 std::list<true_false_BB> IF_While_And_Cond_Stack; // used for Cond
 std::list<true_false_BB> IF_While_Or_Cond_Stack;  // used for Cond
 std::list<true_false_BB> While_Stack;             // used for break and continue
+
 
 //用来处理变量定义时，浮点数和整数转化的问题
 // bool is_in_def = false;
@@ -22,6 +25,7 @@ std::list<true_false_BB> While_Stack;             // used for break and continue
 bool require_lvalue = false;
 // detect scope pre-enter (for elegance only)
 // bool pre_enter_scope = false;
+
 
 // store temporary value
 Value *tmp_val = nullptr;
@@ -53,6 +57,7 @@ Type *FLOATPTR_T;
 
 void IRBuilder::visit(SyntaxTree::Assembly &node)
 {
+
   VOID_T = Type::get_void_type(module.get());
   INT1_T = Type::get_int1_type(module.get());
   INT32_T = Type::get_int32_type(module.get());
@@ -63,6 +68,7 @@ void IRBuilder::visit(SyntaxTree::Assembly &node)
   {
     def->accept(*this);
   }
+
 }
 
 // You need to fill them

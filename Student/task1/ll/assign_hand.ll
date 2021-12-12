@@ -1,3 +1,4 @@
+
 define dso_local i32 @main() #0 {
 0:
     %1 = alloca i32, align 4                                            ;为返回值分配内存
