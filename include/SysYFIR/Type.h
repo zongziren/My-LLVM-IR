@@ -25,7 +25,7 @@ public:
     };
 
     explicit Type(TypeID tid, Module *m);
-    ~Type() = default;
+    virtual ~Type() = default;
 
     TypeID get_type_id() const { return tid_; }
 
